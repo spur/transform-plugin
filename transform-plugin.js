@@ -242,10 +242,11 @@ TransformPlugin.prototype.zoomTo = function (zoom, localX, localY) {
   this.onTransform(this.transform);
 
   window.clearTimeout(this.wheelTimeout);
-  this.wheelTimeout = window.setTimeout(() => {
-    if (this.pointerId === null) {
-      this.isTransforming = false;
-      this.onTransformEnd();
+  var self = this;
+  this.wheelTimeout = window.setTimeout(function () {
+    if (self.pointerId === null) {
+      self.isTransforming = false;
+      self.onTransformEnd();
     }
   }, 200);
 };
