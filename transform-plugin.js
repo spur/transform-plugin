@@ -63,24 +63,24 @@ TransformPlugin.prototype.componentWillUnmount = function () {
 
 TransformPlugin.prototype.onTransformStart = function () {
   if (this.component.onTransformStart) { this.component.onTransformStart(); }
-  if (this.component.props.onTransformStart) { this.component.props.onTransformStart(); }
+  if (this.component.props.onTransformStart) { this.component.props.onTransformStart(this.component); }
 }
 
 TransformPlugin.prototype.onTransform = function (transform) {
   if (this.component.onTransform) { this.component.onTransform(transform); }
-  if (this.component.props.onTransform) { this.component.props.onTransform(transform); }
+  if (this.component.props.onTransform) { this.component.props.onTransform(transform, this.component); }
 }
 
 TransformPlugin.prototype.onTransformEnd = function () {
   if (this.component.onTransformEnd) { this.component.onTransformEnd(); }
-  if (this.component.props.onTransformEnd) { this.component.props.onTransformEnd(); }
+  if (this.component.props.onTransformEnd) { this.component.props.onTransformEnd(this.component); }
 }
 
 TransformPlugin.prototype.setInitialState = function (x, y, scale) {
   this.transform.x = x;
   this.transform.y = y;
   this.transform.scale = scale;
-  this.zoom = scale - 1; 
+  this.zoom = scale - 1;
 };
 
 TransformPlugin.prototype.reset = function () {
@@ -117,7 +117,7 @@ TransformPlugin.prototype.handleTransform = function () {
     startCenterY = this.startCoords.y - this.additionalStartCoords.y;
     currentCenterY = this.firstPointer.y - this.additionalPointer.y;
   }
-  
+
   var x = this.startPos.x + currentCenterX - startCenterX;
   var y = this.startPos.y + currentCenterY - startCenterY;
 
@@ -228,7 +228,7 @@ TransformPlugin.prototype.onPointerUp = function (e) {
 
 TransformPlugin.prototype.zoomTo = function (zoom, localX, localY) {
   zoom = Math.min(Math.max(zoom, this.minScale - 1), this.maxScale - 1);
-  
+
   var x = this.transform.x;
   var y = this.transform.y;
   x = (-x + localX) / (this.zoom + 1) * (zoom + 1) - localX;
