@@ -7,267 +7,278 @@ var interactionLock = require('spur-interaction-lock');
 var TRANSLATION_THRESHOLD = 8;
 
 function TransformPlugin(component) {
-  this.component = component;
-  this.isTransforming = false;
+	this.component = component;
+	this.isTransforming = false;
 
-  this.pointerId = null;
-  this.firstPointer = {};
-  this.additionalPointerId = null;
-  this.additionalPointer = {};
+	this.pointerId = null;
+	this.firstPointer = {};
+	this.additionalPointerId = null;
+	this.additionalPointer = {};
 
-  this.transform = {
-    x: 0,
-    y: 0,
-    scale: 1
-  };
+	this.transform = {
+		x: 0,
+		y: 0,
+		scale: 1
+	};
 
-  this.onWheelBound = this.onWheel.bind(this);
-  this.zoom = 0;
-  this.boundingBox = { left: 0, top: 0, width: 0, height: 0 };
+	this.onWheelBound = this.onWheel.bind(this);
+	this.zoom = 0;
+	this.boundingBox = { left: 0, top: 0, right: 0, bottom: 0 };
 
-  this.minScale = 0.1;
-  this.maxScale = 3;
+	this.minScale = 0.1;
+	this.maxScale = 3;
 
-  this.translate = true;
+	this.translate = true;
+	this.scale = true;
 }
 
 TransformPlugin.prototype.setMaxScale = function (scale) {
-  this.maxScale = scale;
-}
+	this.maxScale = scale;
+};
 
 TransformPlugin.prototype.setMinScale = function (scale) {
-  this.minScale = scale;
-}
+	this.minScale = scale;
+};
 
 TransformPlugin.prototype.setTranslateEnable = function (enable) {
-  this.translate = enable;
+	this.translate = enable;
+};
+
+TransformPlugin.prototype.setScaleEnable = function (enable) {
+	this.scale = enable;
 };
 
 TransformPlugin.prototype.setBoundingContainer = function (boundingBox) {
-  this.boundingBox = boundingBox;
-}
+	this.boundingBox = boundingBox;
+	var transform = this.transform;
+	this.updateTransform(transform.x, transform.y, transform.scale);
+};
 
 TransformPlugin.prototype.componentDidMount = function (DOMNode) {
-  this.DOMNode = DOMNode;
-  addListener(this.DOMNode, 'pointerdown', this.onPointerDown, { context: this });
-  this.DOMNode.addEventListener('wheel', this.onWheelBound);
+	this.DOMNode = DOMNode;
+	addListener(this.DOMNode, 'pointerdown', this.onPointerDown, { context: this });
+	this.DOMNode.addEventListener('wheel', this.onWheelBound);
 };
 
 TransformPlugin.prototype.componentWillUnmount = function () {
-  removeListener(this.DOMNode, 'pointerdown', this.onPointerDown, { context: this });
-  this.DOMNode.removeEventListener('wheel', this.onWheelBound);
-  this.reset();
-  this.DOMNode = null;
-  this.component = null;
+	removeListener(this.DOMNode, 'pointerdown', this.onPointerDown, { context: this });
+	this.DOMNode.removeEventListener('wheel', this.onWheelBound);
+	this.reset();
+	this.DOMNode = null;
+	this.component = null;
 };
 
 TransformPlugin.prototype.onTransformStart = function () {
-  if (this.component.onTransformStart) { this.component.onTransformStart(); }
-  if (this.component.props.onTransformStart) { this.component.props.onTransformStart(this.component); }
-}
+	if (this.component.onTransformStart) { this.component.onTransformStart(); }
+	if (this.component.props.onTransformStart) { this.component.props.onTransformStart(); }
+};
 
 TransformPlugin.prototype.onTransform = function (transform) {
-  if (this.component.onTransform) { this.component.onTransform(transform); }
-  if (this.component.props.onTransform) { this.component.props.onTransform(transform, this.component); }
-}
+	if (this.component.onTransform) { this.component.onTransform(transform); }
+	if (this.component.props.onTransform) { this.component.props.onTransform(transform); }
+};
 
 TransformPlugin.prototype.onTransformEnd = function () {
-  if (this.component.onTransformEnd) { this.component.onTransformEnd(); }
-  if (this.component.props.onTransformEnd) { this.component.props.onTransformEnd(this.component); }
-}
+	if (this.component.onTransformEnd) { this.component.onTransformEnd(); }
+	if (this.component.props.onTransformEnd) { this.component.props.onTransformEnd(); }
+};
 
 TransformPlugin.prototype.setInitialState = function (x, y, scale) {
-  this.transform.x = x;
-  this.transform.y = y;
-  this.transform.scale = scale;
-  this.zoom = scale - 1;
+	this.updateTransform(x, y, scale);
+	this.zoom = this.transform.scale - 1;
 };
 
 TransformPlugin.prototype.reset = function () {
-  removeListener(window, 'pointerdown', this.onAdditionalPointerDown, { context: this });
-  removeListener(window, 'pointermove', this.onPointerMove, { context: this });
-  removeListener(window, 'pointerup', this.onPointerUp, { context: this });
-  removeListener(window, 'pointercancel', this.onPointerCancel, { context: this });
-  if (this.lockId) { interactionLock.releaseLock(this.lockId); }
-  this.isInitiated = false;
-  this.pointerId = this.additionalPointerId = null;
+	removeListener(window, 'pointerdown', this.onAdditionalPointerDown, { context: this });
+	removeListener(window, 'pointermove', this.onPointerMove, { context: this });
+	removeListener(window, 'pointerup', this.onPointerUp, { context: this });
+	removeListener(window, 'pointercancel', this.onPointerCancel, { context: this });
+	if (this.lockId) { interactionLock.releaseLock(this.lockId); }
+	this.isInitiated = false;
+	this.pointerId = this.additionalPointerId = null;
 };
 
 TransformPlugin.prototype.cancel = function () {
-  this.reset();
+	this.reset();
 };
 
 function isBelowThreshold(coords1, coords2) {
-  var deltaX = coords1.clientX - coords2.x;
-  var deltaY = coords1.clientY - coords2.y;
-  var distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-  return distance < TRANSLATION_THRESHOLD;
+	var deltaX = coords1.clientX - coords2.x;
+	var deltaY = coords1.clientY - coords2.y;
+	var distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+	return distance < TRANSLATION_THRESHOLD;
 }
 
 TransformPlugin.prototype.handleTransform = function () {
-  var startCenterX, startCenterY, currentCenterX, currentCenterY;
-  if (this.additionalPointerId === null) {
-    startCenterX = this.startCoords.x;
-    currentCenterX = this.firstPointer.x;
-    startCenterY = this.startCoords.y;
-    currentCenterY = this.firstPointer.y;
-  } else {
-    startCenterX = this.startCoords.x - this.additionalStartCoords.x;
-    currentCenterX = this.firstPointer.x - this.additionalPointer.x;
-    startCenterY = this.startCoords.y - this.additionalStartCoords.y;
-    currentCenterY = this.firstPointer.y - this.additionalPointer.y;
-  }
+	var startCenterX, startCenterY, currentCenterX, currentCenterY;
+	if (this.additionalPointerId === null) {
+		startCenterX = this.startCoords.x;
+		currentCenterX = this.firstPointer.x;
+		startCenterY = this.startCoords.y;
+		currentCenterY = this.firstPointer.y;
+	} else {
+		startCenterX = this.startCoords.x - this.additionalStartCoords.x;
+		currentCenterX = this.firstPointer.x - this.additionalPointer.x;
+		startCenterY = this.startCoords.y - this.additionalStartCoords.y;
+		currentCenterY = this.firstPointer.y - this.additionalPointer.y;
+	}
 
-  var x = this.startPos.x + currentCenterX - startCenterX;
-  var y = this.startPos.y + currentCenterY - startCenterY;
+	var x = this.startPos.x + currentCenterX - startCenterX;
+	var y = this.startPos.y + currentCenterY - startCenterY;
 
-  x = Math.min(Math.max(x, -this.boundingBox.width * (this.zoom)), 0);
-  y = Math.min(Math.max(y, -this.boundingBox.height * (this.zoom)), 0);
+	this.updateTransform(x, y, this.transform.scale);
 
-  this.transform.x = x;
-  this.transform.y = y;
-  this.onTransform(this.transform);
+	this.onTransform(this.transform);
 };
 
 TransformPlugin.prototype.onFirstPointerMove = function (e) {
-  this.firstPointer.x = e.clientX;
-  this.firstPointer.y = e.clientY;
+	this.firstPointer.x = e.clientX;
+	this.firstPointer.y = e.clientY;
 
-  if (!this.isTransforming) {
-    if (!this.translate || isBelowThreshold(e, this.startCoords)) { return; }
+	if (!this.isTransforming) {
+		if (!this.translate || isBelowThreshold(e, this.startCoords)) { return; }
 
-    this.lockId = interactionLock.requestLockOn(e.target);
-    if (!this.lockId) { return this.reset(); }
+		this.lockId = interactionLock.requestLockOn(e.target);
+		if (!this.lockId) { return this.reset(); }
 
-    this.isTransforming = true;
-    this.onTransformStart(e, this.boundingBox);
-  }
+		this.isTransforming = true;
+		this.onTransformStart(e, this.boundingBox);
+	}
 
-  this.handleTransform();
+	this.handleTransform();
 };
 
 TransformPlugin.prototype.onAdditionalPointerMove = function (e) {
-  this.additionalPointer.x = e.clientX;
-  this.additionalPointer.y = e.clientY;
+	this.additionalPointer.x = e.clientX;
+	this.additionalPointer.y = e.clientY;
 
-  if (!this.isTransforming) {
-    if (isBelowThreshold(e, this.firstPointer)) { return; } // pinch threshold ?
+	if (!this.isTransforming) {
+		if (isBelowThreshold(e, this.firstPointer)) { return; } // pinch threshold ?
 
-    this.lockId = interactionLock.requestLockOn(e.target);
-    if (!this.lockId) { return this.reset(); }
+		this.lockId = interactionLock.requestLockOn(e.target);
+		if (!this.lockId) { return this.reset(); }
 
-    this.isTransforming = true;
-    this.onTransformStart(e, this.boundingBox);
-  }
+		this.isTransforming = true;
+		this.onTransformStart(e, this.boundingBox);
+	}
 
-  this.handleTransform();
+	this.handleTransform();
 };
 
 TransformPlugin.prototype.onPointerMove = function (e) {
-  if (e.pointerId === this.pointerId) {
-    return this.onFirstPointerMove(e);
-  }
+	if (e.pointerId === this.pointerId) {
+		return this.onFirstPointerMove(e);
+	}
 
-  if (e.pointerId === this.additionalPointerId) {
-    return this.onAdditionalPointerMove(e);
-  }
+	if (e.pointerId === this.additionalPointerId) {
+		return this.onAdditionalPointerMove(e);
+	}
 };
 
 TransformPlugin.prototype.onPointerDown = function (e) {
-  if (this.isInitiated || (e.pointerType === 'mouse' && (!this.translate || e.buttons !== 1))) { return; }
-  this.isInitiated = true;
-  this.isTransforming = false;
+	if (this.isInitiated || (e.pointerType === 'mouse' && (!this.translate || e.buttons !== 1))) { return; }
+	this.isInitiated = true;
+	this.isTransforming = false;
+	this.pointerId = e.pointerId;
 
-  this.pointerId = e.pointerId;
-  this.startCoords = {
-    x: e.clientX,
-    y: e.clientY
-  }
-  this.startPos = {
-    x: this.transform.x,
-    y: this.transform.y
-  };
+	this.startCoords = {
+		x: e.clientX,
+		y: e.clientY
+	};
 
-  addListener(window, 'pointerdown', this.onAdditionalPointerDown, { context: this });
-  addListener(window, 'pointermove', this.onPointerMove, { context: this });
-  addListener(window, 'pointercancel', this.cancel, { context: this });
-  addListener(window, 'pointerup', this.onPointerUp, { context: this });
+	this.startPos = {
+		x: this.transform.x,
+		y: this.transform.y
+	};
+
+	addListener(window, 'pointerdown', this.onAdditionalPointerDown, { context: this });
+	addListener(window, 'pointermove', this.onPointerMove, { context: this });
+	addListener(window, 'pointercancel', this.cancel, { context: this });
+	addListener(window, 'pointerup', this.onPointerUp, { context: this });
 };
 
 TransformPlugin.prototype.onAdditionalPointerDown = function (e) {
-  if (this.additionalPointerId !== null || this.pointerId === e.pointerId) { return; }
-  this.additionalPointerId = e.pointerId;
-  this.additionalStartCoords = {
-    x: e.clientX,
-    y: e.clientY
-  }
-  this.additionalPointer.x = e.clientX;
-  this.additionalPointer.y = e.clientY;
+	if (this.additionalPointerId !== null || this.pointerId === e.pointerId) { return; }
+	this.additionalPointerId = e.pointerId;
+	this.additionalStartCoords = {
+		x: e.clientX,
+		y: e.clientY
+	};
+	this.additionalPointer.x = e.clientX;
+	this.additionalPointer.y = e.clientY;
 };
 
 TransformPlugin.prototype.onPointerUp = function (e) {
-  if (e.pointerId === this.pointerId) {
-    if (this.additionalPointerId !== null) {
-      this.pointerId = this.additionalPointerId;
-      this.additionalPointerId = null;
-      this.firstPointer.x = this.additionalPointer.x;
-      this.firstPointer.y = this.additionalPointer.y;
-    } else {
-      this.isTransforming = false;
-      this.onTransformEnd();
-      this.reset();
-    }
+	if (e.pointerId === this.pointerId) {
+		if (this.additionalPointerId !== null) {
+			this.pointerId = this.additionalPointerId;
+			this.additionalPointerId = null;
+			this.firstPointer.x = this.additionalPointer.x;
+			this.firstPointer.y = this.additionalPointer.y;
+		} else {
+			this.isTransforming = false;
+			this.onTransformEnd();
+			this.reset();
+		}
 
-    return;
-  }
+		return;
+	}
 
-  if (e.pointerId === this.additionalPointerId) {
-    this.additionalPointerId = null;
-  }
+	if (e.pointerId === this.additionalPointerId) {
+		this.additionalPointerId = null;
+	}
+};
+
+TransformPlugin.prototype.updateTransform = function (x, y, scale) {
+	this.transform.scale = Math.min(Math.max(scale, this.minScale), this.maxScale);
+	this.transform.x = Math.max(Math.min(x, this.boundingBox.right), this.boundingBox.left);
+	this.transform.y = Math.max(Math.min(y, this.boundingBox.bottom), this.boundingBox.top);
 };
 
 TransformPlugin.prototype.zoomTo = function (zoom, localX, localY) {
-  zoom = Math.min(Math.max(zoom, this.minScale - 1), this.maxScale - 1);
+	if (!this.scale) { return; }
+	zoom = Math.min(Math.max(zoom, this.minScale - 1), this.maxScale - 1);
 
-  var x = this.transform.x;
-  var y = this.transform.y;
-  x = (-x + localX) / (this.zoom + 1) * (zoom + 1) - localX;
-  y = (-y + localY) / (this.zoom + 1) * (zoom + 1) - localY;
+	var x = this.transform.x;
+	var y = this.transform.y;
+	x = (x - localX) / (this.zoom + 1) * (zoom + 1) + localX;
+	y = (y - localY) / (this.zoom + 1) * (zoom + 1) + localY;
 
-  this.transform.scale *= (zoom + 1) / (this.zoom + 1);
-  this.transform.x = Math.min(Math.max(-x, -this.boundingBox.width * zoom), 0);
-  this.transform.y = Math.min(Math.max(-y, -this.boundingBox.height * zoom), 0);
+	var scale = this.transform.scale * (zoom + 1) / (this.zoom + 1);
 
-  this.zoom = zoom;
-  this.onTransform(this.transform);
+	this.updateTransform(x, y, scale);
 
-  window.clearTimeout(this.wheelTimeout);
-  var self = this;
-  this.wheelTimeout = window.setTimeout(function () {
-    if (self.pointerId === null) {
-      self.isTransforming = false;
-      self.onTransformEnd();
-    }
-  }, 200);
+	this.zoom = zoom;
+	this.onTransform(this.transform);
+
+	window.clearTimeout(this.wheelTimeout);
+	var self = this;
+	this.wheelTimeout = window.setTimeout(function () {
+		if (self.pointerId === null) {
+			self.isTransforming = false;
+			self.onTransformEnd();
+		}
+	}, 200);
 };
 
 TransformPlugin.prototype.onWheel = function (e) {
-  var w = e.wheelDelta;
-  var d = e.detail;
-  var distance = 1;
-  if (d) {
-    if (w) distance = w / d / 40 * d > 0 ? 1 : -1; // Opera
-    else distance = -d / 3; // Firefox TODO: do not /3 for OS X
-  } else distance = w / 120;
+	if (!this.scale) { return; }
+	var w = e.wheelDelta;
+	var d = e.detail;
+	var distance = 1;
+	if (d) {
+		if (w) distance = w / d / 40 * d > 0 ? 1 : -1; // Opera
+		else distance = -d / 3; // Firefox TODO: do not /3 for OS X
+	} else distance = w / 120;
 
-  if (!this.isTransforming) {
-    this.isTransforming = true;
-    this.onTransformStart();
-  }
+	if (!this.isTransforming) {
+		this.isTransforming = true;
+		this.onTransformStart();
+	}
 
-  this.zoomTo(this.zoom + distance / 15, e.clientX - this.boundingBox.left, e.clientY - this.boundingBox.top);
-  e.preventDefault();
-  e.stopPropagation();
+	this.zoomTo(this.zoom + distance / 15, e.clientX - this.boundingBox.left, e.clientY - this.boundingBox.top);
+	e.preventDefault();
+	e.stopPropagation();
 };
 
 module.exports = TransformPlugin;
