@@ -22,7 +22,6 @@ function TransformPlugin(component) {
 	};
 
 	this.onWheelBound = this.onWheel.bind(this);
-	this.zoom = 0;
 	this.boundingBox = { left: 0, top: 0, right: 0, bottom: 0 };
 
 	this.minScale = 0.1;
@@ -65,7 +64,6 @@ TransformPlugin.prototype.componentWillUnmount = function () {
 	this.DOMNode.removeEventListener('wheel', this.onWheelBound);
 	this.reset();
 	this.DOMNode = null;
-	this.component = null;
 };
 
 TransformPlugin.prototype.onTransformStart = function () {
@@ -85,7 +83,6 @@ TransformPlugin.prototype.onTransformEnd = function () {
 
 TransformPlugin.prototype.setInitialState = function (x, y, scale) {
 	this.updateTransform(x, y, scale);
-	this.zoom = this.transform.scale - 1;
 };
 
 TransformPlugin.prototype.reset = function () {
@@ -233,22 +230,20 @@ TransformPlugin.prototype.updateTransform = function (x, y, scale) {
 	this.transform.scale = Math.min(Math.max(scale, this.minScale), this.maxScale);
 	this.transform.x = Math.max(Math.min(x, this.boundingBox.right), this.boundingBox.left);
 	this.transform.y = Math.max(Math.min(y, this.boundingBox.bottom), this.boundingBox.top);
+	this.prevScale = this.transform.scale;
 };
 
-TransformPlugin.prototype.zoomTo = function (zoom, localX, localY) {
-	if (!this.scale) { return; }
-	zoom = Math.min(Math.max(zoom, this.minScale - 1), this.maxScale - 1);
+TransformPlugin.prototype.scaleTo = function (scale, localX, localY) {
+	scale = Math.min(Math.max(scale, this.minScale), this.maxScale);
 
-	var x = this.transform.x;
-	var y = this.transform.y;
-	x = (x - localX) / (this.zoom + 1) * (zoom + 1) + localX;
-	y = (y - localY) / (this.zoom + 1) * (zoom + 1) + localY;
+	const scaleChange = scale / this.transform.scale;
 
-	var scale = this.transform.scale * (zoom + 1) / (this.zoom + 1);
+	var x = localX - (localX - this.transform.x) * scaleChange;
+	var y = localY - (localY - this.transform.y) * scaleChange;
 
 	this.updateTransform(x, y, scale);
+	this.prevScale = scale;
 
-	this.zoom = zoom;
 	this.onTransform(this.transform);
 
 	window.clearTimeout(this.wheelTimeout);
@@ -276,7 +271,14 @@ TransformPlugin.prototype.onWheel = function (e) {
 		this.onTransformStart();
 	}
 
-	this.zoomTo(this.zoom + distance / 15, e.clientX - this.boundingBox.left, e.clientY - this.boundingBox.top);
+	const boundingBox = this.DOMNode.getBoundingClientRect();
+
+	this.scaleTo(
+		this.transform.scale + distance / 15,
+		e.clientX + this.transform.x - boundingBox.left,
+		e.clientY + this.transform.y - boundingBox.top
+	);
+
 	e.preventDefault();
 	e.stopPropagation();
 };
