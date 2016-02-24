@@ -138,6 +138,8 @@ TransformPlugin.prototype.onFirstPointerMove = function (e) {
 		this.lockId = interactionLock.requestLockOn(e.target);
 		if (!this.lockId) { return this.reset(); }
 
+		this.startCoords.x = e.clientX;
+		this.startCoords.y = e.clientY;
 		this.isTransforming = true;
 		this.onTransformStart(e, this.boundingBox);
 	}
