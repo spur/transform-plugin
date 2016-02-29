@@ -27,6 +27,6 @@
   "homepage": "https://github.com/spur/transform-plugin#readme",
   "dependencies": {
     "spur-events": "^0.1.1",
-    "spur-interaction-lock": "git+https://github.com/spur/interaction-lock.git"
+    "spur-interaction-lock": "github:spur/interaction-lock#master"
   }
 }
