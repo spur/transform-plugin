@@ -158,7 +158,7 @@ TransformPlugin.prototype.onFirstPointerMove = function (e) {
 	if (!this.isTransforming) {
 		if (!this.translate || isBelowThreshold(e, this.startCoords)) { return; }
 
-		this.lockId = interactionLock.requestLockOn(e.target);
+		this.lockId = interactionLock.requestLockOn(this.target);
 		if (!this.lockId) { return this.reset(); }
 
 		this.startCoords.x = e.clientX;
