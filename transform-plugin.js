@@ -33,6 +33,8 @@ function TransformPlugin(component) {
 	this.rotation = false;
 }
 
+TransformPlugin.plugName = 'transform';
+
 TransformPlugin.prototype.setMaxScale = function (scale) {
 	this.maxScale = scale;
 };
