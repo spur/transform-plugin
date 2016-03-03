@@ -245,8 +245,10 @@ TransformPlugin.prototype.onPointerUp = function (e) {
 			this.firstPointer.x = this.additionalPointer.x;
 			this.firstPointer.y = this.additionalPointer.y;
 		} else {
+			if (this.isTransforming) {
+				this.onTransformEnd();
+			}
 			this.isTransforming = false;
-			this.onTransformEnd();
 			this.reset();
 		}
 
