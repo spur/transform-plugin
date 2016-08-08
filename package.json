@@ -1,6 +1,6 @@
 {
   "name": "spur-transform-plugin",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "DOM translation/slide and scale/zoom features to your React components.",
   "main": "transform-plugin.js",
   "repository": {
